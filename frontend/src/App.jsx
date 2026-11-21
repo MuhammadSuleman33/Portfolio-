@@ -1,4 +1,4 @@
-﻿import { useEffect, useRef, useState } from "react";
+﻿import { useEffect, useMemo, useRef, useState } from "react";
 import Navbar from "./components/Navbar";
 import ProjectCard from "./components/ProjectCard";
 import CaseStudyModal from "./components/CaseStudyModal";
@@ -11,6 +11,67 @@ import {
   isAuthenticated,
   logoutAdmin,
 } from "./services/api";
+
+const BASE_STACK = {
+  frontendMobile: ["React.js", "C#", ".NET MAUI", "XAML", "MVVM", "Responsive UI"],
+  backendAi: ["Python", "FastAPI", "Gemini · Groq · Cohere", "Scikit-learn", "PyTorch", "Celery & Redis"],
+  databaseDeploy: ["PostgreSQL", "SQL Server", "Supabase", "Stripe", "Vercel & Railway", "Docker"],
+};
+
+const BASE_MARQUEE = [
+  "C# / .NET MAUI",
+  "Python · FastAPI",
+  "React.js",
+  "Supabase",
+  "PostgreSQL",
+  "SQL Server",
+  "Gemini · Groq · Cohere",
+  "Scikit-learn · PyTorch",
+  "Stripe",
+  "Docker",
+  "Vercel · Railway",
+];
+
+function classifyTechBucket(techName) {
+  const t = techName.toLowerCase();
+  if (
+    t.includes("react") ||
+    t.includes("vue") ||
+    t.includes("next") ||
+    t.includes("html") ||
+    t.includes("css") ||
+    t.includes("tailwind") ||
+    t.includes("typescript") ||
+    t.includes("javascript") ||
+    t.includes("maui") ||
+    t.includes("xaml") ||
+    t.includes("mvvm") ||
+    t.includes("android") ||
+    t.includes("ios") ||
+    t.includes("flutter") ||
+    t.includes("c#")
+  ) {
+    return "frontendMobile";
+  }
+  if (
+    t.includes("postgres") ||
+    t.includes("sql") ||
+    t.includes("supabase") ||
+    t.includes("mongo") ||
+    t.includes("firebase") ||
+    t.includes("stripe") ||
+    t.includes("vercel") ||
+    t.includes("railway") ||
+    t.includes("docker") ||
+    t.includes("aws") ||
+    t.includes("azure") ||
+    t.includes("minio") ||
+    t.includes("git")
+  ) {
+    return "databaseDeploy";
+  }
+  return "backendAi";
+}
 
 function normalizeApiProject(item) {
   return {
@@ -68,6 +129,45 @@ export default function App() {
     setToast(msg);
     setTimeout(() => setToast(""), 2600);
   };
+
+  // Automatically merge project tech stacks into capability cards & marquee (deduplicated)
+  const { dynamicStack, marqueeTech } = useMemo(() => {
+    const buckets = {
+      frontendMobile: [...BASE_STACK.frontendMobile],
+      backendAi: [...BASE_STACK.backendAi],
+      databaseDeploy: [...BASE_STACK.databaseDeploy],
+    };
+
+    const seenLower = new Set(
+      [...buckets.frontendMobile, ...buckets.backendAi, ...buckets.databaseDeploy].map((x) =>
+        x.toLowerCase()
+      )
+    );
+
+    const marqueeList = [...BASE_MARQUEE];
+    const seenMarquee = new Set(marqueeList.map((x) => x.toLowerCase()));
+
+    projects.forEach((proj) => {
+      (proj.tags || []).forEach((rawTag) => {
+        const cleanTag = String(rawTag || "").trim();
+        if (!cleanTag) return;
+        const key = cleanTag.toLowerCase();
+
+        if (!seenLower.has(key)) {
+          seenLower.add(key);
+          const targetBucket = classifyTechBucket(cleanTag);
+          buckets[targetBucket].push(cleanTag);
+        }
+
+        if (!seenMarquee.has(key)) {
+          seenMarquee.add(key);
+          marqueeList.push(cleanTag);
+        }
+      });
+    });
+
+    return { dynamicStack: buckets, marqueeTech: marqueeList };
+  }, [projects]);
 
   // Hidden Admin Access: Ctrl + Shift + A or #admin in URL
   useEffect(() => {
@@ -218,7 +318,7 @@ export default function App() {
     const formatted = normalizeApiProject(createdRow);
     setProjects((prev) => [formatted, ...prev]);
     setActiveFilter("All");
-    showToast("Project published to Supabase!");
+    showToast("Project published & skills synced automatically!");
   };
 
   const handleDeleteProject = async (projectId) => {
@@ -277,20 +377,6 @@ export default function App() {
           }
           return true;
         });
-
-  const marqueeTech = [
-    "C# / .NET MAUI",
-    "Python · FastAPI",
-    "React.js",
-    "Supabase",
-    "PostgreSQL",
-    "SQL Server",
-    "Gemini · Groq · Cohere",
-    "Scikit-learn · PyTorch",
-    "Stripe",
-    "Docker",
-    "Vercel · Railway",
-  ];
 
   return (
     <>
@@ -421,7 +507,7 @@ export default function App() {
           </div>
         </section>
 
-        {/* INFINITE TECH MARQUEE */}
+        {/* INFINITE TECH MARQUEE (Auto-synced with Project Tech Stacks) */}
         <div className="marquee-strip" aria-hidden="true">
           <div className="marquee-track">
             {[...marqueeTech, ...marqueeTech].map((item, idx) => (
@@ -430,7 +516,7 @@ export default function App() {
           </div>
         </div>
 
-        {/* 01 — WHAT I DO */}
+        {/* 01 — WHAT I DO (Auto-synced with Project Tech Stacks) */}
         <section className="sec" id="about">
           <div className="wrap">
             <div className="sec-header-editorial rv">
@@ -443,7 +529,7 @@ export default function App() {
                 <h2 className="sec-heading">One developer. The whole stack.</h2>
               </div>
               <p className="sec-desc">
-                From the first mobile or web screen to the database and AI pipeline behind it — one engineer who builds, connects, and ships all of it.
+                From the first mobile or web screen to the database and AI pipeline behind it — automatically updated as new project technologies are added.
               </p>
             </div>
 
@@ -460,12 +546,9 @@ export default function App() {
                   Responsive, fast web interfaces and native cross-platform Android applications built with clean architecture.
                 </p>
                 <ul className="cap-list">
-                  <li>React.js</li>
-                  <li>C#</li>
-                  <li>.NET MAUI</li>
-                  <li>XAML</li>
-                  <li>MVVM</li>
-                  <li>Responsive UI</li>
+                  {dynamicStack.frontendMobile.map((skill, i) => (
+                    <li key={i}>{skill}</li>
+                  ))}
                 </ul>
               </div>
 
@@ -480,12 +563,9 @@ export default function App() {
                   Asynchronous REST APIs, multi-model AI integrations, AutoML pipelines, and secure role-based authentication.
                 </p>
                 <ul className="cap-list">
-                  <li>Python</li>
-                  <li>FastAPI</li>
-                  <li>Gemini · Groq · Cohere</li>
-                  <li>Scikit-learn</li>
-                  <li>PyTorch</li>
-                  <li>Celery &amp; Redis</li>
+                  {dynamicStack.backendAi.map((skill, i) => (
+                    <li key={i}>{skill}</li>
+                  ))}
                 </ul>
               </div>
 
@@ -502,12 +582,9 @@ export default function App() {
                   Normalized relational schemas, cloud object storage, payment subscriptions, and production CI/CD deployments.
                 </p>
                 <ul className="cap-list">
-                  <li>PostgreSQL</li>
-                  <li>SQL Server</li>
-                  <li>Supabase</li>
-                  <li>Stripe</li>
-                  <li>Vercel &amp; Railway</li>
-                  <li>Docker</li>
+                  {dynamicStack.databaseDeploy.map((skill, i) => (
+                    <li key={i}>{skill}</li>
+                  ))}
                 </ul>
               </div>
             </div>
